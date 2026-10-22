@@ -1,4 +1,4 @@
-"""AstrBot 班级管理插件 v1.5.3（平台适配修复版）。
+"""AstrBot 班级管理插件 v1.5.4（语法兼容修复版）。
 
 功能：
 - 智能交互：免 @ 触发（指令/精确关键词/模糊关键词）、二级菜单、
@@ -8,6 +8,9 @@
 - v1.5.3：平台适配层（OneBot / QQ 官方 / Telegram）、禁言能力探测、
   不支持禁言时自动降级为警告 + 扣积分、平台信息与惩罚记录指令、
   修复 event.chain_result 传入 MessageChain 导致的 TypeError
+- v1.5.4：修复 @ 目标被误判（兼容 openid / 文本 @昵称 / 数字 ID），
+  删除商品、奖品、任务与兑换支持“编号或名称”，
+  修复数字 ID 被误当作时长或数量的问题，菜单文案与实际功能保持一致
 - 每日签到、连续签到奖励
 - 积分查询、班级排行榜
 - 群聊聊天积分（每日上限、频率限制）
@@ -365,7 +368,7 @@ SMART_CATEGORIES: dict[str, dict[str, Any]] = {
         "emoji": "2️⃣",
         "entries": [
             {"title": "查看商城", "action": "shop"},
-            {"title": "兑换商品", "action": "", "usage": "/兑换 商品ID"},
+            {"title": "兑换商品", "action": "", "usage": "/兑换 商品编号或名称"},
             {"title": "兑换记录", "action": "exchange_logs"},
             {"title": "查看奖池", "action": "lottery_prizes"},
             {"title": "抽奖一次", "action": "lottery"},
@@ -411,7 +414,7 @@ SMART_CATEGORIES: dict[str, dict[str, Any]] = {
     "5": {
         "key": "me",
         "name": "个人中心",
-        "desc": "我的、设置、转账、帮助",
+        "desc": "我的信息、记录、任务、帮助",
         "emoji": "5️⃣",
         "entries": [
             {"title": "我的信息", "action": "my_info"},
@@ -431,13 +434,13 @@ SMART_CATEGORIES: dict[str, dict[str, Any]] = {
         "emoji": "6️⃣",
         "entries": [
             {"title": "添加商品", "action": "", "usage": "/添加商品 名称 所需积分 库存"},
-            {"title": "删除商品", "action": "", "usage": "/删除商品 商品ID"},
+            {"title": "删除商品", "action": "", "usage": "/删除商品 编号或名称"},
             {"title": "商城管理", "action": "", "usage": "/商城管理"},
             {"title": "添加奖品", "action": "", "usage": "/添加奖品 名称 概率 库存"},
-            {"title": "删除奖品", "action": "", "usage": "/删除奖品 奖品ID"},
+            {"title": "删除奖品", "action": "", "usage": "/删除奖品 编号或名称"},
             {"title": "抽奖统计", "action": "", "usage": "/抽奖统计"},
             {"title": "添加任务", "action": "", "usage": "/添加任务 名称 类型 目标 积分 经验"},
-            {"title": "删除任务", "action": "", "usage": "/删除任务 任务ID"},
+            {"title": "删除任务", "action": "", "usage": "/删除任务 编号或名称"},
             {"title": "加积分", "action": "", "usage": "/加积分 @成员 数量"},
             {"title": "减积分", "action": "", "usage": "/减积分 @成员 数量"},
             {"title": "设置签到奖励", "action": "", "usage": "/设置签到奖励 数量"},
@@ -454,7 +457,7 @@ SMART_FUNCTION_HELP: dict[str, tuple[str, str, str]] = {
     "排行榜": ("/排行榜", "查看本群积分排行榜前 10 名。", "签到积分"),
     "积分明细": ("/积分明细", "查看最近 20 条积分变动记录。", "签到积分"),
     "查看商城": ("/商城", "查看本群商品、所需积分与库存，商品编号用于兑换。", "商城兑换"),
-    "兑换商品": ("/兑换 商品ID", "消耗积分兑换商品，库存自动扣减。", "商城兑换"),
+    "兑换商品": ("/兑换 商品编号或名称", "消耗积分兑换商品，库存自动扣减。", "商城兑换"),
     "兑换记录": ("/兑换记录", "查看个人最近 20 条兑换记录。", "商城兑换"),
     "查看奖池": ("/奖池", "查看抽奖奖品、概率与剩余库存。", "商城兑换"),
     "抽奖一次": (f"/抽奖（消耗 {LOTTERY_COST} 积分）", f"消耗 {LOTTERY_COST} 积分抽奖一次，连续 {LOTTERY_PITY} 次未中奖必中。", "商城兑换"),
@@ -482,13 +485,13 @@ SMART_FUNCTION_HELP: dict[str, tuple[str, str, str]] = {
     "我的信息": ("/我的信息", "查看个人积分、经验、等级、称号与违规记录。", "个人中心"),
     "转账记录": ("/转账记录", "查看个人最近 20 条转账记录。", "个人中心"),
     "添加商品": ("/添加商品 名称 所需积分 库存", "管理员添加商城商品。", "管理后台"),
-    "删除商品": ("/删除商品 商品ID", "管理员删除商城商品。", "管理后台"),
+    "删除商品": ("/删除商品 编号或名称", "管理员删除商城商品，支持编号或完整名称。", "管理后台"),
     "商城管理": ("/商城管理", "管理员查看商品与兑换统计。", "管理后台"),
     "添加奖品": ("/添加奖品 名称 概率 库存", "管理员添加抽奖奖品。", "管理后台"),
-    "删除奖品": ("/删除奖品 奖品ID", "管理员删除抽奖奖品。", "管理后台"),
+    "删除奖品": ("/删除奖品 编号或名称", "管理员删除抽奖奖品，支持编号或完整名称。", "管理后台"),
     "抽奖统计": ("/抽奖统计", "管理员查看抽奖数据统计。", "管理后台"),
     "添加任务": ("/添加任务 名称 类型 目标 积分 经验", "管理员添加每日任务。", "管理后台"),
-    "删除任务": ("/删除任务 任务ID", "管理员删除每日任务。", "管理后台"),
+    "删除任务": ("/删除任务 编号或名称", "管理员删除每日任务，支持编号或完整名称。", "管理后台"),
     "加积分": ("/加积分 @成员 数量", "管理员手动增加成员积分。", "管理后台"),
     "减积分": ("/减积分 @成员 数量", "管理员手动减少成员积分。", "管理后台"),
     "设置签到奖励": ("/设置签到奖励 数量", "管理员设置本群签到基础积分。", "管理后台"),
@@ -690,7 +693,7 @@ class ClassManagerPlugin(Star):
             )
         if self._context_task is None or self._context_task.done():
             self._context_task = asyncio.create_task(self._context_cleanup_loop())
-        self.logger.info("班级管理插件 v1.5.3 已启动，数据库：%s", DB_PATH)
+        self.logger.info("班级管理插件 v1.5.4 已启动，数据库：%s", DB_PATH)
 
     async def terminate(self) -> None:
         """插件停用/重载时取消后台任务并关闭数据库。"""
@@ -1304,7 +1307,7 @@ class ClassManagerPlugin(Star):
             if len(items) > 20:
                 lines.append(f"…… 还有 {len(items) - 20} 件商品未显示")
             lines.append("")
-            lines.append("发送 /兑换 商品ID 即可兑换")
+            lines.append("发送 /兑换 商品编号或名称 即可兑换")
 
         yield event.plain_result("\n".join(lines))
 
@@ -1408,11 +1411,13 @@ class ClassManagerPlugin(Star):
             return
 
         raw = raw_item_id or self._command_remainder(event, "删除商品")
-        item_id = self._parse_item_id(raw)
+        item_id, error = self._resolve_item_reference(
+            self.db.list_shop_items(group_id),
+            raw,
+            "商品",
+        )
         if item_id is None:
-            yield event.plain_result(
-                "❌ 商品编号不合法，请使用：/删除商品 商品ID",
-            )
+            yield event.plain_result(error or "❌ 商品编号不合法，请使用：/删除商品 商品编号或名称")
             return
 
         item = self.db.get_shop_item(group_id, item_id)
@@ -1459,10 +1464,15 @@ class ClassManagerPlugin(Star):
             return
 
         raw = raw_item_id or self._command_remainder(event, "兑换")
-        item_id = self._parse_item_id(raw)
+        item_id, error = self._resolve_item_reference(
+            self.db.list_shop_items(group_id),
+            raw,
+            "商品",
+        )
         if item_id is None:
             yield event.plain_result(
-                "❌ 商品编号不合法，请使用：/兑换 商品ID\n发送 /商城 可查看商品编号。",
+                (error or "❌ 商品编号不合法，请使用：/兑换 商品编号或名称")
+                + "\n发送 /商城 可查看商品编号与名称。",
             )
             return
 
@@ -1833,10 +1843,14 @@ class ClassManagerPlugin(Star):
             return
 
         raw = self._command_remainder(event, "删除奖品")
-        prize_id = self._parse_item_id(raw)
+        prize_id, error = self._resolve_item_reference(
+            self.db.list_lottery_prizes(group_id),
+            raw,
+            "奖品",
+        )
         if prize_id is None:
             yield event.plain_result(
-                "❌ 奖品编号不合法，请使用：/删除奖品 奖品ID",
+                error or "❌ 奖品编号不合法，请使用：/删除奖品 奖品编号或名称",
             )
             return
 
@@ -2190,10 +2204,14 @@ class ClassManagerPlugin(Star):
             return
 
         raw = self._command_remainder(event, "删除任务")
-        task_id = self._parse_item_id(raw)
+        task_id, error = self._resolve_item_reference(
+            self.db.list_tasks(group_id),
+            raw,
+            "任务",
+        )
         if task_id is None:
             yield event.plain_result(
-                "❌ 任务编号不合法，请使用：/删除任务 任务ID",
+                error or "❌ 任务编号不合法，请使用：/删除任务 任务编号或名称",
             )
             return
 
@@ -2356,6 +2374,8 @@ class ClassManagerPlugin(Star):
         if parsed is None:
             remainder = self._command_remainder(event, "转账")
             for token in remainder.split():
+                if str(token).lstrip("@＠") == str(target_id):
+                    continue
                 candidate = self._parse_points_amount(token)
                 if candidate is not None:
                     parsed = candidate
@@ -2973,8 +2993,12 @@ class ClassManagerPlugin(Star):
         tokens = self._command_remainder(event, "禁言").split()
         minutes = int(config.get("mute_duration", DEFAULT_BANNED_DURATION) or 10)
         for token in tokens:
-            if token.isdigit():
-                minutes = int(token)
+            cleaned = self._clean_target_token(token)
+            # 跳过目标用户 ID，避免把 /禁言 900010 3 中的 ID 当时长
+            if cleaned and cleaned == str(target_id):
+                continue
+            if cleaned.isdigit():
+                minutes = int(cleaned)
                 break
         if not 1 <= minutes <= MAX_MUTE_MINUTES:
             yield event.plain_result(
@@ -3165,7 +3189,7 @@ class ClassManagerPlugin(Star):
             yield event.plain_result("❌ 用法：/警告 @某人 原因")
             return
 
-        reason = self._extract_reason(event, "警告")
+        reason = self._extract_reason(event, "警告", target_name, target_id)
         result = self.db.add_warning(
             group_id,
             target_id,
@@ -3425,11 +3449,14 @@ class ClassManagerPlugin(Star):
         event: AstrMessageEvent,
         command: str,
         target_name: str,
+        target_id: str = "",
     ) -> list[str]:
-        """去掉 @ 与目标昵称后的指令参数。"""
+        """去掉 @ 与目标昵称/ID 后的指令参数。"""
         tokens: list[str] = []
         for token in self._command_remainder(event, command).split():
             if token.startswith("@") or token.startswith("[CQ:at"):
+                continue
+            if target_id and self._clean_target_token(token) == str(target_id):
                 continue
             tokens.append(token)
         if tokens and target_name and tokens[0] == target_name:
@@ -3456,7 +3483,12 @@ class ClassManagerPlugin(Star):
             )
             return
 
-        tokens = self._parse_punish_tokens(event, "手动惩罚", target_name)
+        tokens = self._parse_punish_tokens(
+            event,
+            "手动惩罚",
+            target_name,
+            target_id,
+        )
         if not tokens:
             yield event.plain_result(
                 "❌ 用法：/手动惩罚 @成员 警告|扣分|黑名单 [原因/数量]",
@@ -3585,7 +3617,12 @@ class ClassManagerPlugin(Star):
             yield event.plain_result("❌ 用法：/积分惩罚 @某人 数量 [原因]")
             return
 
-        tokens = self._parse_punish_tokens(event, "积分惩罚", target_name)
+        tokens = self._parse_punish_tokens(
+            event,
+            "积分惩罚",
+            target_name,
+            target_id,
+        )
         amount = 0
         reason_parts: list[str] = []
         for token in tokens:
@@ -4234,7 +4271,7 @@ class ClassManagerPlugin(Star):
 
         # 以下为 /帮助 全部 的完整指令清单
         text = (
-            "📖 班级管理插件 v1.5.3 · 完整指令\n"
+            "📖 班级管理插件 v1.5.4 · 完整指令\n"
             "\n"
             "【签到与积分】\n"
             "/签到 — 每日签到（也可直接发送“签到”）\n"
@@ -4246,7 +4283,7 @@ class ClassManagerPlugin(Star):
             "\n"
             "【积分商城】\n"
             "/商城 — 查看本群商品（也可直接发送“商城”）\n"
-            "/兑换 商品ID — 使用积分兑换商品\n"
+            "/兑换 商品编号或名称 — 使用积分兑换商品\n"
             "/兑换记录 — 查看个人兑换历史\n"
             "\n"
             "【抽奖系统】\n"
@@ -4274,13 +4311,13 @@ class ClassManagerPlugin(Star):
             "\n"
             "【管理员指令】\n"
             "/添加商品 名称 所需积分 库存 — 添加商品\n"
-            "/删除商品 商品ID — 删除商品\n"
+            "/删除商品 编号或名称 — 删除商品\n"
             "/商城管理 — 查看商品与兑换统计\n"
             "/添加奖品 名称 概率 库存 — 添加抽奖奖品\n"
-            "/删除奖品 奖品ID — 删除抽奖奖品\n"
+            "/删除奖品 编号或名称 — 删除抽奖奖品\n"
             "/抽奖统计 — 查看抽奖数据\n"
             "/添加任务 名称 类型 [目标次数] 积分 经验 — 添加任务\n"
-            "/删除任务 任务ID — 删除任务\n"
+            "/删除任务 编号或名称 — 删除任务\n"
             "/清零 @成员 — 清零该成员积分\n"
             "/加积分 @成员 数量 — 手动增加积分\n"
             "/减积分 @成员 数量 — 手动减少积分\n"
@@ -4372,7 +4409,7 @@ class ClassManagerPlugin(Star):
     def _render_main_menu() -> str:
         """渲染主菜单：只展示 6 个分类入口，避免菜单过长。"""
         lines = [
-            "📋 班级助手 v1.5.3",
+            "📋 班级助手 v1.5.4",
             "",
             "【快捷入口】",
             " | ".join(SMART_QUICK_ENTRIES),
@@ -4396,7 +4433,7 @@ class ClassManagerPlugin(Star):
     @staticmethod
     def _render_flat_menu() -> str:
         """渲染平铺菜单（menu_style=flat 时使用）。"""
-        lines = ["📋 班级助手 v1.5.3 · 全部功能", ""]
+        lines = ["📋 班级助手 v1.5.4 · 全部功能", ""]
         for cid, category in SMART_CATEGORIES.items():
             lines.append(f"【{cid}. {category['name']}】")
             for entry in category["entries"]:
@@ -5462,6 +5499,8 @@ class ClassManagerPlugin(Star):
             command = "加积分" if direction > 0 else "减积分"
             remainder = self._command_remainder(event, command)
             for token in remainder.split():
+                if self._clean_target_token(token) == str(target_id):
+                    continue
                 parsed = self._parse_points_amount(token)
                 if parsed is not None:
                     amount = parsed
@@ -6203,12 +6242,17 @@ class ClassManagerPlugin(Star):
         event: AstrMessageEvent,
         command: str,
         target_name: str = "",
+        target_id: str = "",
     ) -> str:
-        """从指令参数中提取原因文本，自动去掉 @ 与目标昵称。"""
+        """从指令参数中提取原因文本，自动去掉 @、目标昵称与用户 ID。"""
         remainder = ClassManagerPlugin._command_remainder(event, command)
         cleaned: list[str] = []
         for index, token in enumerate(remainder.split()):
             if token.startswith("@") or "[CQ:at" in token:
+                continue
+            if target_id and ClassManagerPlugin._clean_target_token(token) == str(
+                target_id
+            ):
                 continue
             if index == 0 and target_name and token == target_name:
                 continue
@@ -6397,6 +6441,42 @@ class ClassManagerPlugin(Star):
             return None
         return value
 
+    def _resolve_item_reference(
+        self,
+        items: list[dict[str, Any]],
+        raw: str,
+        kind: str,
+        id_key: str = "id",
+        name_key: str = "name",
+    ) -> tuple[int | None, str]:
+        """解析“编号或名称”形式的引用。
+
+        返回 ``(编号, 错误提示)``；编号为 None 时错误提示非空。
+        """
+        text = str(raw or "").strip()
+        if not text:
+            return None, f"❌ 请提供{kind}编号或名称。"
+
+        cleaned = text.lstrip("#").strip()
+        if cleaned.isdigit():
+            value = int(cleaned)
+            if value <= 0 or value > 1_000_000_000:
+                return None, f"❌ {kind}编号不合法。"
+            return value, ""
+
+        name = text.lstrip("@").strip().strip("「」\"'“”")
+        matches = [
+            item
+            for item in items
+            if str(item.get(name_key) or "").strip() == name
+        ]
+        if len(matches) == 1:
+            return int(matches[0][id_key]), ""
+        if len(matches) > 1:
+            ids = "、".join(f"#{int(item[id_key])}" for item in matches)
+            return None, f"❌ 有多个同名{kind}（{ids}），请改用编号。"
+        return None, f"❌ 未找到名为「{name}」的{kind}，请先查看列表确认名称或编号。"
+
     @staticmethod
     def _command_remainder(event: AstrMessageEvent, command: str) -> str:
         """从原始消息中取出指令后面的参数部分。"""
@@ -6434,29 +6514,84 @@ class ClassManagerPlugin(Star):
             messages = []
 
         self_id = str(event.get_self_id() or "").strip()
+        name_only = ""
         for component in messages or []:
             if isinstance(component, Comp.At):
-                qq = str(getattr(component, "qq", "") or "")
-                if qq and qq != "all" and qq != self_id and qq.isdigit():
-                    name = str(getattr(component, "name", "") or "").strip()
-                    return qq, name
-        return "", ""
+                qq = str(getattr(component, "qq", "") or "").strip()
+                name = str(getattr(component, "name", "") or "").strip()
+                # 部分适配器只提供昵称、不提供 ID，先记下来按昵称查找。
+                if not qq:
+                    if (
+                        name
+                        and name not in ("全体成员", "所有人", "all")
+                        and not name_only
+                    ):
+                        name_only = name
+                    continue
+                # QQ 官方机器人的 @ 目标可能是 openid（非纯数字），
+                # 这里不能强制要求 qq.isdigit()，否则会误报“语法错误”。
+                if qq in ("all", "0"):
+                    continue
+                if self_id and qq == self_id:
+                    continue
+                return qq, name
+        return "", name_only
+
+    @staticmethod
+    def _clean_target_token(token: str) -> str:
+        """清理文本形式的 @xxx / ID，去掉首尾标点。"""
+        return str(token or "").strip().lstrip("@＠").strip(
+            " \t\r\n，,。.、:：;；!！?？()（）[]【】<>《》\"'“”‘’"
+        )
 
     def _resolve_target(
         self,
         event: AstrMessageEvent,
         group_id: str,
     ) -> tuple[str, str]:
-        """解析管理员指令的操作对象，返回 (用户ID, 显示名)。"""
-        target_id, at_name = self._extract_at_target(event)
-        if not target_id:
-            return "", ""
+        """解析管理员指令的操作对象，返回 (用户ID, 显示名)。
 
-        stored_name = ""
-        user = self.db.get_user(group_id, target_id)
-        if user:
-            stored_name = str(user.get("nickname") or "").strip()
-        return target_id, at_name or stored_name or target_id
+        支持三种写法：
+        1. 消息链中的 At 组件（OneBot / QQ 官方 openid 均可）；
+        2. 文本形式的 ``@昵称``（按群内昵称精确匹配）；
+        3. 直接输入数字用户 ID。
+        """
+        target_id, at_name = self._extract_at_target(event)
+        if target_id:
+            stored_name = ""
+            user = self.db.get_user(group_id, target_id)
+            if user:
+                stored_name = str(user.get("nickname") or "").strip()
+            return target_id, at_name or stored_name or target_id
+
+        # 适配器只给了 @ 昵称、没给 ID 时，按昵称精确查找唯一成员
+        if at_name:
+            matches = self.db.find_users_by_nickname(group_id, at_name)
+            if len(matches) == 1:
+                return str(matches[0]["user_id"]), at_name
+
+        # 兜底：部分平台不会把 @ 转成 At 组件，只能从文本解析
+        text = str(getattr(event, "message_str", "") or "").strip()
+        tokens = text.split()
+        for token in tokens:
+            if not token.startswith(("@", "＠")):
+                continue
+            name = self._clean_target_token(token)
+            if not name or name in ("全体成员", "所有人", "all"):
+                continue
+            matches = self.db.find_users_by_nickname(group_id, name)
+            if len(matches) == 1:
+                user = matches[0]
+                return str(user["user_id"]), name
+
+        # 再兜底：直接输入 5 位以上的数字用户 ID
+        for token in tokens:
+            cleaned = self._clean_target_token(token)
+            if cleaned.isdigit() and len(cleaned) >= 5:
+                user = self.db.get_user(group_id, cleaned)
+                if user:
+                    return cleaned, str(user.get("nickname") or cleaned)
+        return "", ""
 
     async def _is_group_admin(self, event: AstrMessageEvent) -> bool:
         """判断发送者是否为群主/管理员。

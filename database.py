@@ -1,4 +1,4 @@
-"""班级管理插件 v1.5.3 的 SQLite 数据层。
+"""班级管理插件 v1.5.4 的 SQLite 数据层。
 
 所有数据都通过 ``group_id`` 隔离，每个群（班级）的数据互不影响。
 数据库文件默认位于插件目录下的 ``data/class_manager.db``。
@@ -12,7 +12,8 @@
 - v1.5.0：group_settings 新增 trigger_mode 字段，用于按群保存智能触发方式；
 - v1.5.1：新增 get_user_overview，用于个人中心统计兑换/抽奖/违规次数；
 - v1.5.3：adjust_points 新增可选 reason 参数，惩罚扣分写入更明确的积分明细；
-  数据库结构无变化，惩罚记录继续复用 punish_logs 表。
+  数据库结构无变化，惩罚记录继续复用 punish_logs 表；
+- v1.5.4：新增 find_users_by_nickname，用于文本 @昵称 与仅含昵称的 At 目标解析。
 """
 
 from __future__ import annotations
@@ -1141,6 +1142,23 @@ class ClassDatabase:
                 (group_id, user_id),
             ).fetchone()
         return dict(row) if row else None
+
+    def find_users_by_nickname(
+        self,
+        group_id: str,
+        nickname: str,
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """按群内昵称精确查找成员，用于 @ 昵称形式的指令。"""
+        nickname = (nickname or "").strip()
+        if not nickname:
+            return []
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM users WHERE group_id = ? AND nickname = ? LIMIT ?",
+                (group_id, nickname, max(1, int(limit))),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def get_user_overview(self, group_id: str, user_id: str) -> dict[str, int]:
         """v1.5.1：统计个人中心的兑换、抽奖与违规次数。"""
