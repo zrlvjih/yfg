@@ -1,0 +1,64 @@
+# 班级管理插件 v1.5.3 配置文件
+# 修改保存后自动生效（热更新），无需重启 AstrBot。
+
+# ========== 免 @ 触发 ==========
+# all     — 指令 + 精确/模糊关键词（默认，推荐）
+# command — 仅指令（/、！开头）
+# keyword — 仅关键词（无需前缀）
+# 群主/管理员可用 /触发模式 单独设置某个群，群设置优先。
+trigger_mode: "all"
+
+# 主菜单样式：category（6 分类 + 二级菜单）/ flat（平铺全部功能）
+menu_style: "category"
+
+# 同一用户两次主动触发的最小间隔（秒），0 表示不限制。范围 0~60。
+cooldown_seconds: 3
+
+# 上下文/会话超时（秒），范围 5~600。
+# 旧版 context_timeout 仍然兼容，两者同时存在时以 session_timeout 为准。
+session_timeout: 30
+context_timeout: 30
+
+# 管理员是否绕过触发频率限制。
+admin_bypass: true
+
+# ========== v1.5.1 新增 ==========
+# 插件处理消息后是否阻断 LLM，避免重复回复。
+block_llm: true
+
+# 启用智能菜单：自然语言意图识别、错别字纠正、未知指令推荐。
+smart_menu: true
+
+# 个人中心与排行榜显示群主/管理员/普通成员身份。
+identity_display: true
+
+# 未匹配到插件功能时，自动把疑问句/请求句交给 LLM。
+auto_detect: true
+
+# 聊天模式前缀：发送“/聊天 你好”即可直接与 AI 对话。
+# 只发送“/聊天”会进入持续聊天模式，输入“退出”结束。
+chat_prefixes: ["/聊天", "/ai", "#"]
+
+# 聊天模式超时（秒），超时后自动退出。范围 5~600。
+chat_timeout: 30
+
+# ========== v1.5.3 新增：惩罚配置 ==========
+punishment:
+  # 检测到违规时是否自动禁言（仅在平台支持禁言时生效）。
+  # OneBot（NapCat / go-cqhttp / Lagrange）与 Telegram 支持；
+  # QQ 官方机器人无禁言能力，会自动走降级策略。
+  auto_mute: true
+
+  # 默认禁言时长（分钟），范围 1~43200（30 天）。
+  # 影响：/禁言 未指定时长、违禁词默认禁言、自动审核默认禁言。
+  mute_duration: 10
+
+  # 警告阈值：同一成员累计达到该次数后提醒管理员手动处理。范围 1~20。
+  warning_threshold: 3
+
+  # 违规默认扣除的积分数量。范围 0~1000，0 表示不扣分。
+  points_deduction: 5
+
+  # 平台不支持禁言时，是否自动降级为“记录警告 + 扣除积分”。
+  # false 时只提示管理员手动处理，不写入警告与扣分。
+  fallback_to_warning: true

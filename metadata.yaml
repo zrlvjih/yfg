@@ -1,0 +1,7 @@
+name: class_manager
+display_name: 班级
+desc: 班级群管理插件，修复禁言功能，适配不同平台。
+short_desc: 平台自适配禁言/解禁、智能降级惩罚、平台信息、惩罚记录、签到积分商城群管
+version: 1.5.3
+author: 辞忧
+astrbot_version: ">=4.0,<5"
